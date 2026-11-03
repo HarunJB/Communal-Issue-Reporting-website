@@ -1,0 +1,26 @@
+@model product_website.Models.SuccessViewModel
+@{
+    ViewData["Title"] = "Login successful";
+    var roleLabel = Model.Role switch
+    {
+        "admin" => "Admin",
+        "operator" => "Operator",
+        "citizen" => "User",
+        _ => Model.Role
+    };
+}
+
+<div class="auth-card text-center">
+    <div class="success-icon" aria-hidden="true">&#10003;</div>
+    <h1 class="auth-title">Login successful</h1>
+    <p class="auth-sub mb-4">You are signed in as</p>
+
+    <span class="role-badge role-@Model.Role">@roleLabel</span>
+
+    <dl class="success-details">
+        <dt>Name</dt>
+        <dd>@Model.Name</dd>
+        <dt>Email</dt>
+        <dd>@Model.Email</dd>
+    </dl>
+</div>

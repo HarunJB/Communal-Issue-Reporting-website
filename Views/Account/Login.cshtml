@@ -1,0 +1,46 @@
+@model product_website.Models.LoginViewModel
+@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="auth-card">
+    <h1 class="auth-title">Welcome back</h1>
+    <p class="auth-sub">Sign in to report and track city issues.</p>
+
+    @if (TempData["Success"] is string successMessage)
+    {
+        <div class="alert alert-success" role="alert">@successMessage</div>
+    }
+
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <form asp-action="Login" method="post" data-validate novalidate>
+        <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+
+        <div class="mb-3">
+            <label asp-for="Email" class="form-label">Email</label>
+            <input asp-for="Email" class="form-control" type="email" autocomplete="email" placeholder="name@example.com" required />
+            <span asp-validation-for="Email" class="field-error"></span>
+            <div class="invalid-feedback">Please enter a valid email address.</div>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Password" class="form-label">Password</label>
+            <div class="input-group has-validation">
+                <input asp-for="Password" class="form-control" type="password" autocomplete="current-password" required />
+                <button class="btn btn-toggle" type="button" data-toggle-password="Password" aria-pressed="false">Show</button>
+                <div class="invalid-feedback">Please enter your password.</div>
+            </div>
+            <span asp-validation-for="Password" class="field-error"></span>
+        </div>
+
+        <div class="form-check mb-4">
+            <input asp-for="RememberMe" class="form-check-input" />
+            <label asp-for="RememberMe" class="form-check-label">Keep me signed in</label>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">Sign in</button>
+    </form>
+
+    <p class="auth-switch">No account yet? <a asp-action="Register">Create one</a></p>
+</div>

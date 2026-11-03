@@ -1,0 +1,71 @@
+@model product_website.Models.RegisterViewModel
+@{
+    ViewData["Title"] = "Register";
+}
+
+<div class="auth-card auth-card-wide">
+    <h1 class="auth-title">Create your account</h1>
+    <p class="auth-sub">An account is required to submit reports. It takes a minute.</p>
+
+    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+    <form asp-action="Register" method="post" data-validate novalidate>
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <label asp-for="FirstName" class="form-label"></label>
+                <input asp-for="FirstName" class="form-control" autocomplete="given-name" required />
+                <span asp-validation-for="FirstName" class="field-error"></span>
+                <div class="invalid-feedback">First name is required.</div>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="LastName" class="form-label"></label>
+                <input asp-for="LastName" class="form-control" autocomplete="family-name" required />
+                <span asp-validation-for="LastName" class="field-error"></span>
+                <div class="invalid-feedback">Last name is required.</div>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Email" class="form-label"></label>
+                <input asp-for="Email" class="form-control" type="email" autocomplete="email" placeholder="name@example.com" required />
+                <span asp-validation-for="Email" class="field-error"></span>
+                <div class="invalid-feedback">Please enter a valid email address.</div>
+            </div>
+
+            <div class="col-sm-6">
+                <label asp-for="Phone" class="form-label">Phone <span class="text-optional">(optional)</span></label>
+                <input asp-for="Phone" class="form-control" type="tel" autocomplete="tel" />
+                <span asp-validation-for="Phone" class="field-error"></span>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="Language" class="form-label">Language</label>
+                <select asp-for="Language" class="form-select">
+                    <option value="bs">Bosanski</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+
+            <div class="col-sm-6">
+                <label asp-for="Password" class="form-label"></label>
+                <div class="input-group has-validation">
+                    <input asp-for="Password" class="form-control" type="password" autocomplete="new-password" minlength="8" required />
+                    <button class="btn btn-toggle" type="button" data-toggle-password="Password" aria-pressed="false">Show</button>
+                    <div class="invalid-feedback">Use at least 8 characters.</div>
+                </div>
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="ConfirmPassword" class="form-label"></label>
+                <div class="input-group has-validation">
+                    <input asp-for="ConfirmPassword" class="form-control" type="password" autocomplete="new-password" data-match="Password" required />
+                    <button class="btn btn-toggle" type="button" data-toggle-password="ConfirmPassword" aria-pressed="false">Show</button>
+                    <div class="invalid-feedback">Passwords do not match.</div>
+                </div>
+                <span asp-validation-for="ConfirmPassword" class="field-error"></span>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 mt-4">Create account</button>
+    </form>
+
+    <p class="auth-switch">Already registered? <a asp-action="Login">Sign in</a></p>
+</div>
