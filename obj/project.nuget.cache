@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "4aUn/NMXuZ8=",
+  "success": true,
+  "projectFilePath": "C:\\dev\\product_website\\product_website.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\PC\\.nuget\\packages\\bcrypt.net-next\\4.2.0\\bcrypt.net-next.4.2.0.nupkg.sha512",
+    "C:\\Users\\PC\\.nuget\\packages\\dapper\\2.1.89\\dapper.2.1.89.nupkg.sha512",
+    "C:\\Users\\PC\\.nuget\\packages\\npgsql\\10.0.3\\npgsql.10.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}
