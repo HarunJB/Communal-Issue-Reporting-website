@@ -1,0 +1,65 @@
+@model CategoryFormModel
+@{
+    var creating = Model.Id == 0;
+    ViewData["Title"] = creating ? "Add category" : "Edit category";
+}
+
+<div class="page-head">
+    <div>
+        <a class="form-hint text-decoration-none" asp-action="Categories">&larr; Categories</a>
+        <h1 class="page-title">@ViewData["Title"]</h1>
+    </div>
+</div>
+
+<section class="panel form-narrow">
+    <form asp-action="CategoryEdit" method="post" novalidate>
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <label asp-for="NameEn" class="form-label">Name (English)</label>
+                <input asp-for="NameEn" class="form-control" />
+                <span asp-validation-for="NameEn" class="field-error"></span>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="NameBs" class="form-label">Name (Bosnian)</label>
+                <input asp-for="NameBs" class="form-control" />
+                <span asp-validation-for="NameBs" class="field-error"></span>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="DepartmentId" class="form-label">Department</label>
+                <select asp-for="DepartmentId" class="form-select">
+                    <option value="0">Choose&hellip;</option>
+                    @foreach (var d in Model.Departments)
+                    {
+                        <option value="@d.Id" selected="@(Model.DepartmentId == d.Id)">@d.Name</option>
+                    }
+                </select>
+                <span asp-validation-for="DepartmentId" class="field-error"></span>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="DefaultPriority" class="form-label">Default priority</label>
+                <select asp-for="DefaultPriority" class="form-select">
+                    <option value="low">Low</option>
+                    <option value="normal">Normal</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="Icon" class="form-label">Icon name <span class="form-hint">(optional)</span></label>
+                <input asp-for="Icon" class="form-control" placeholder="for example water_drop" />
+                <div class="form-hint">Used by the mobile app.</div>
+            </div>
+            <div class="col-sm-6 d-flex align-items-center">
+                <div class="form-check mt-3">
+                    <input asp-for="IsActive" class="form-check-input" />
+                    <label asp-for="IsActive" class="form-check-label">Active (citizens can choose it)</label>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-navy">Save</button>
+            <a class="btn btn-soft" asp-action="Categories">Cancel</a>
+        </div>
+    </form>
+</section>

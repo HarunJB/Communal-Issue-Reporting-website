@@ -1,0 +1,84 @@
+@model AuditViewModel
+@{
+    ViewData["Title"] = "Audit log";
+    string Link(int page)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(Model.Action)) parts.Add("actionFilter=" + Uri.EscapeDataString(Model.Action));
+        if (!string.IsNullOrWhiteSpace(Model.EntityType)) parts.Add("entityType=" + Uri.EscapeDataString(Model.EntityType));
+        if (page > 1) parts.Add("page=" + page);
+        return "/Admin/Audit" + (parts.Count == 0 ? "" : "?" + string.Join("&", parts));
+    }
+    var pager = new PagerModel { Page = Model.Page, TotalPages = Model.TotalPages, Total = Model.Total, PageSize = 25, Noun = "entries", LinkFor = Link };
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">Audit log</h1>
+        <div class="page-sub">Who changed what, newest first</div>
+    </div>
+</div>
+
+<form method="get" action="/Admin/Audit" class="filter-bar">
+    <div>
+        <label class="form-label" for="actionFilter">Action</label>
+        <select id="actionFilter" name="actionFilter" class="form-select">
+            <option value="">All</option>
+            @foreach (var a in Model.Actions)
+            {
+                <option value="@a" selected="@(Model.Action == a)">@UiFormat.ActionLabel(a)</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label class="form-label" for="entityType">Object</label>
+        <select id="entityType" name="entityType" class="form-select">
+            <option value="">All</option>
+            @foreach (var e in new[] { "report", "user", "category", "department" })
+            {
+                <option value="@e" selected="@(Model.EntityType == e)">@(char.ToUpper(e[0]) + e.Substring(1))</option>
+            }
+        </select>
+    </div>
+    <div class="actions align-self-end">
+        <button type="submit" class="btn btn-navy">Apply</button>
+        <a class="btn btn-soft" href="/Admin/Audit">Reset</a>
+    </div>
+</form>
+
+<section class="panel flush">
+    @if (Model.Rows.Count == 0)
+    {
+        <div class="empty-state"><strong>No entries</strong></div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-dash">
+                <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Object</th><th>Details</th></tr></thead>
+                <tbody>
+                @foreach (var a in Model.Rows)
+                {
+                    <tr>
+                        <td class="num">@UiFormat.DateTimeText(a.CreatedAt)</td>
+                        <td>@(a.ActorName ?? "System")</td>
+                        <td>@UiFormat.ActionLabel(a.Action)</td>
+                        <td>
+                            @if (a.EntityType == "report" && a.EntityId.HasValue)
+                            {
+                                <a asp-controller="Issues" asp-action="Details" asp-route-id="@a.EntityId">Report #@a.EntityId</a>
+                            }
+                            else
+                            {
+                                <span>@a.EntityType@(a.EntityId.HasValue ? " #" + a.EntityId : "")</span>
+                            }
+                        </td>
+                        <td class="cell-clip muted">@a.Details</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="pager" />
+    }
+</section>

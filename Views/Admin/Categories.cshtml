@@ -1,0 +1,40 @@
+@model List<CategoryRow>
+@{ ViewData["Title"] = "Categories"; }
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">Categories</h1>
+        <div class="page-sub">Problem types citizens can choose, and the department that handles each</div>
+    </div>
+    <a class="btn btn-navy" asp-action="CategoryEdit">Add category</a>
+</div>
+
+<section class="panel flush">
+    @if (Model.Count == 0)
+    {
+        <div class="empty-state"><strong>No categories yet</strong></div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-dash">
+                <thead><tr><th>English</th><th>Bosnian</th><th>Department</th><th>Default priority</th><th>Status</th><th class="num">Reports</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var c in Model)
+                {
+                    <tr>
+                        <td><strong>@c.NameEn</strong></td>
+                        <td>@c.NameBs</td>
+                        <td>@c.DepartmentName</td>
+                        <td><partial name="_PriorityChip" model="c.DefaultPriority" /></td>
+                        <td>@if (c.IsActive) { <span class="chip chip-resolved">Active</span> } else { <span class="chip chip-muted">Hidden</span> }</td>
+                        <td class="num">@c.ReportCount</td>
+                        <td class="num"><a class="btn btn-soft btn-sm" asp-action="CategoryEdit" asp-route-id="@c.Id">Edit</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+<p class="form-hint mt-2">Categories are never deleted, because old reports use them. Hide a category to stop citizens choosing it.</p>

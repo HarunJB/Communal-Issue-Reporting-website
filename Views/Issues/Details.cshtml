@@ -1,0 +1,242 @@
+@model ReportDetailViewModel
+@{
+    var r = Model.Report;
+    ViewData["Title"] = $"Issue #{r.Id}";
+    var inv = System.Globalization.CultureInfo.InvariantCulture;
+    var isFinal = r.Status == "resolved" || r.Status == "rejected";
+    var afterPhotos = r.Photos.Count(p => p.Kind == "resolution");
+}
+
+<div class="page-head">
+    <div>
+        <a class="form-hint text-decoration-none" asp-action="Index">&larr; All issues</a>
+        <h1 class="page-title">
+            #@r.Id &middot; @r.CategoryName
+            <partial name="_StatusChip" model="r.Status" />
+            @if (Model.IsAdmin) { <partial name="_PriorityChip" model="r.Priority" /> }
+            @if (r.ArchivedAt.HasValue) { <span class="chip chip-muted">Archived</span> }
+        </h1>
+        <div class="page-sub">Reported @UiFormat.DateTimeText(r.CreatedAt) &middot; @r.SupportCount @(r.SupportCount == 1 ? "person supports" : "people support") this</div>
+    </div>
+</div>
+
+<div class="detail-grid">
+    <div>
+        <section class="panel">
+            <h2 class="panel-title">Report</h2>
+            <dl class="kv">
+                <dt>Description</dt>
+                <dd>@(string.IsNullOrWhiteSpace(r.Description) ? "No description." : r.Description)</dd>
+                <dt>Address</dt>
+                <dd>@(string.IsNullOrWhiteSpace(r.Address) ? "Not given" : r.Address)<br /><span class="form-hint">@r.Latitude.ToString("F5", inv), @r.Longitude.ToString("F5", inv)</span></dd>
+                <dt>Department</dt>
+                <dd>@r.DepartmentName</dd>
+                <dt>Reported by</dt>
+                <dd>
+                    @if (r.IsAnonymous) { <span>Anonymous citizen</span> }
+                    else
+                    {
+                        <span>@r.AuthorName</span>
+                        @if (!string.IsNullOrWhiteSpace(r.AuthorEmail)) { <div class="form-hint">@r.AuthorEmail@(string.IsNullOrWhiteSpace(r.AuthorPhone) ? "" : " · " + r.AuthorPhone)</div> }
+                    }
+                </dd>
+                <dt>Source</dt>
+                <dd>@(r.Source == "mobile" ? "Mobile app" : "Website")</dd>
+                <dt>Assigned to</dt>
+                <dd>@(r.AssignedName ?? "Nobody yet")</dd>
+                @if (!string.IsNullOrWhiteSpace(r.RejectionReason))
+                {
+                    <dt>Rejection</dt>
+                    <dd>@r.RejectionReason</dd>
+                }
+                @if (r.ResolvedAt.HasValue)
+                {
+                    <dt>Resolved</dt>
+                    <dd>@UiFormat.DateTimeText(r.ResolvedAt.Value)</dd>
+                }
+            </dl>
+        </section>
+
+        <section class="panel section-gap">
+            <h2 class="panel-title">Photos <small>@r.Photos.Count</small></h2>
+            @if (r.Photos.Count == 0)
+            {
+                <div class="form-hint">The citizen did not attach photos.</div>
+            }
+            else
+            {
+                <div class="photo-grid">
+                    @foreach (var p in r.Photos)
+                    {
+                        <button type="button" data-photo="@p.Url" aria-label="Open photo">
+                            <img src="@p.Url" alt="@(p.Kind == "resolution" ? "After photo" : "Report photo")" loading="lazy" />
+                            @if (p.Kind == "resolution") { <span class="photo-tag">After</span> }
+                        </button>
+                    }
+                </div>
+            }
+        </section>
+
+        <section class="panel section-gap">
+            <h2 class="panel-title">Location</h2>
+            <div class="map-box" id="detail-map" data-lat="@r.Latitude.ToString("R", inv)" data-lng="@r.Longitude.ToString("R", inv)" data-status="@r.Status"></div>
+        </section>
+
+        <section class="panel section-gap">
+            <h2 class="panel-title">Conversation <small>internal notes are never shown to citizens</small></h2>
+            @if (r.Comments.Count == 0)
+            {
+                <div class="form-hint mb-3">No comments yet.</div>
+            }
+            @foreach (var c in r.Comments)
+            {
+                <div class="comment @(c.IsInternal ? "internal" : "")">
+                    <div class="who">
+                        <span>@c.AuthorName</span>
+                        <span class="chip chip-muted">@UiFormat.RoleLabel(c.AuthorRole)</span>
+                        @if (c.IsInternal) { <span class="chip chip-priority-normal">Internal note</span> }
+                        <span class="when">@UiFormat.DateTimeText(c.CreatedAt)</span>
+                    </div>
+                    <p>@c.Body</p>
+                </div>
+            }
+            <div class="mt-3">
+                <label class="form-label" for="comment-body">Add a comment</label>
+                <textarea id="comment-body" name="CommentBody" form="saveall" rows="3" maxlength="1000" class="form-control"></textarea>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="internal" name="IsInternal" value="true" form="saveall" />
+                    <label class="form-check-label" for="internal">Internal note (staff only)</label>
+                </div>
+                <div class="form-hint mt-1">Saved with the <strong>Save all changes</strong> button. A public comment is sent to the citizen as a notification.</div>
+            </div>
+        </section>
+
+        <section class="panel section-gap">
+            <h2 class="panel-title">History</h2>
+            <ul class="timeline">
+                @foreach (var h in r.History.OrderByDescending(x => x.CreatedAt))
+                {
+                    <li>
+                        <span class="dot" aria-hidden="true">@UiFormat.StatusGlyph(h.NewStatus)</span>
+                        <div>
+                            @if (h.OldStatus is null) { <strong>Reported</strong> }
+                            else { <span>@UiFormat.StatusLabel(h.OldStatus) &rarr; <strong>@UiFormat.StatusLabel(h.NewStatus)</strong></span> }
+                        </div>
+                        <div class="when">@h.ChangedByName &middot; @UiFormat.DateTimeText(h.CreatedAt)</div>
+                        @if (!string.IsNullOrWhiteSpace(h.Note)) { <div class="note">@h.Note</div> }
+                    </li>
+                }
+            </ul>
+        </section>
+    </div>
+
+    <aside>
+        <section class="panel">
+            <h2 class="panel-title">Actions</h2>
+
+            <form asp-action="SaveAll" asp-route-id="@r.Id" method="post" enctype="multipart/form-data" id="saveall" data-saveall>
+                <div class="action-block">
+                    <h3>Status</h3>
+                    <select name="Status" class="form-select mb-2" aria-label="New status">
+                        @foreach (var s in UiFormat.AllStatuses)
+                        {
+                            <option value="@s" selected="@(s == r.Status)">@UiFormat.StatusLabel(s)</option>
+                        }
+                    </select>
+                    <label class="form-label form-hint mb-1" for="status-note">Note <span data-note-hint>(optional, internal history)</span></label>
+                    <textarea id="status-note" name="Note" rows="2" maxlength="500" class="form-control mb-2"></textarea>
+                    <label class="form-label form-hint mb-1" for="status-public">Message to the citizen (optional)</label>
+                    <textarea id="status-public" name="PublicComment" rows="2" maxlength="1000" class="form-control"></textarea>
+                </div>
+
+                <div class="action-block">
+                    <h3>Assignee</h3>
+                    <select name="AssigneeId" class="form-select mb-2" aria-label="Assignee">
+                        <option value="0" selected="@(!r.AssignedTo.HasValue)">Nobody (unassign)</option>
+                        @foreach (var u in Model.Assignable)
+                        {
+                            <option value="@u.Id" selected="@(r.AssignedTo == u.Id)">@u.Name@(u.Id == Model.CurrentUserId ? " (me)" : "") &middot; @UiFormat.RoleLabel(u.Role)</option>
+                        }
+                    </select>
+                    @if (r.AssignedTo != Model.CurrentUserId && Model.Assignable.Any(u => u.Id == Model.CurrentUserId))
+                    {
+                        <button type="button" class="btn btn-soft btn-sm" data-assign-me="@Model.CurrentUserId">Choose me</button>
+                    }
+                </div>
+
+                @if (Model.IsAdmin)
+                {
+                    <div class="action-block">
+                        <h3>Priority</h3>
+                        <select name="Priority" class="form-select" aria-label="Priority">
+                            <option value="high" selected="@(r.Priority == "high")">High</option>
+                            <option value="normal" selected="@(r.Priority == "normal")">Normal</option>
+                            <option value="low" selected="@(r.Priority == "low")">Low</option>
+                        </select>
+                    </div>
+
+                    <div class="action-block">
+                        <h3>Category and department</h3>
+                        <select name="CategoryId" class="form-select mb-2" aria-label="Category" data-move>
+                            @foreach (var c in Model.Categories)
+                            {
+                                <option value="@c.Id" selected="@(c.Id == r.CategoryId)">@c.Name</option>
+                            }
+                        </select>
+                        <select name="DepartmentId" class="form-select" aria-label="Department" data-move>
+                            @foreach (var d in Model.Departments)
+                            {
+                                <option value="@d.Id" selected="@(d.Id == r.DepartmentId)">@d.Name</option>
+                            }
+                        </select>
+                    </div>
+                }
+
+                <div class="action-block">
+                    <h3>&ldquo;After&rdquo; photo <span class="text-lowercase fw-normal">(@afterPhotos of 3)</span></h3>
+                    @if (afterPhotos >= 3)
+                    {
+                        <div class="form-hint">The limit of 3 &ldquo;after&rdquo; photos is reached.</div>
+                    }
+                    else
+                    {
+                        <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" class="form-control" />
+                        <div class="form-hint mt-1">Shown to the citizen as proof of the repair. JPEG, PNG or WebP, up to 8 MB.</div>
+                    }
+                </div>
+
+                <div class="action-block">
+                    <button type="submit" class="btn btn-navy w-100 py-2" data-save-all>Save all changes</button>
+                    <div class="form-hint mt-1 text-center">Saves the status, assignee, priority, comment and photo you filled in.</div>
+                </div>
+            </form>
+
+            @if (isFinal || r.ArchivedAt.HasValue)
+            {
+                <div class="action-block">
+                    <h3>Archive</h3>
+                    @if (r.ArchivedAt.HasValue)
+                    {
+                        <form asp-action="Unarchive" asp-route-id="@r.Id" method="post">
+                            <button type="submit" class="btn btn-soft w-100">Restore from archive</button>
+                        </form>
+                    }
+                    else
+                    {
+                        <form asp-action="Archive" asp-route-id="@r.Id" method="post">
+                            <button type="submit" class="btn btn-soft w-100" data-confirm="Archive this report? It stays in the system but is hidden from the lists.">Archive report</button>
+                        </form>
+                    }
+                </div>
+            }
+        </section>
+    </aside>
+</div>
+
+<div class="modal fade modal-photo" id="photoModal" tabindex="-1" aria-label="Photo" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-transparent border-0">
+            <div class="modal-body text-center p-0"><img id="photoModalImg" src="" alt="Report photo" /></div>
+        </div>
+    </div>
+</div>

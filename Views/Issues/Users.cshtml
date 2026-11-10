@@ -1,0 +1,104 @@
+@model UserListViewModel
+@{
+    ViewData["Title"] = "Users";
+    string Link(int page)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(Model.Q)) parts.Add("q=" + Uri.EscapeDataString(Model.Q));
+        if (!string.IsNullOrWhiteSpace(Model.Role)) parts.Add("role=" + Model.Role);
+        if (!string.IsNullOrWhiteSpace(Model.Status)) parts.Add("status=" + Model.Status);
+        if (page > 1) parts.Add("page=" + page);
+        return "/Admin/Users" + (parts.Count == 0 ? "" : "?" + string.Join("&", parts));
+    }
+    var pager = new PagerModel { Page = Model.Page, TotalPages = Model.TotalPages, Total = Model.Total, PageSize = 25, Noun = "users", LinkFor = Link };
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">Users</h1>
+        <div class="page-sub">Create staff accounts, assign departments, suspend accounts</div>
+    </div>
+    <a class="btn btn-navy" asp-action="UserCreate">Add staff account</a>
+</div>
+
+<form method="get" action="/Admin/Users" class="filter-bar">
+    <div>
+        <label class="form-label" for="q">Search</label>
+        <input id="q" name="q" value="@Model.Q" class="form-control" placeholder="Name or email" />
+    </div>
+    <div>
+        <label class="form-label" for="role">Role</label>
+        <select id="role" name="role" class="form-select">
+            <option value="">All</option>
+            <option value="citizen" selected="@(Model.Role == "citizen")">Citizens</option>
+            <option value="operator" selected="@(Model.Role == "operator")">Operators</option>
+            <option value="admin" selected="@(Model.Role == "admin")">Admins</option>
+        </select>
+    </div>
+    <div>
+        <label class="form-label" for="status">Status</label>
+        <select id="status" name="status" class="form-select">
+            <option value="">All</option>
+            <option value="active" selected="@(Model.Status == "active")">Active</option>
+            <option value="suspended" selected="@(Model.Status == "suspended")">Suspended</option>
+        </select>
+    </div>
+    <div class="actions align-self-end">
+        <button type="submit" class="btn btn-navy">Apply</button>
+        <a class="btn btn-soft" href="/Admin/Users">Reset</a>
+    </div>
+</form>
+
+<section class="panel flush">
+    @if (Model.Users.Count == 0)
+    {
+        <div class="empty-state"><strong>No users found</strong>Try a different search.</div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-dash">
+                <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Status</th><th class="num">Reports</th><th>Joined</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var u in Model.Users)
+                {
+                    <tr>
+                        <td><strong>@u.FullName</strong>@(u.Id == Model.CurrentUserId ? " (you)" : "")<div class="muted">@u.Email</div></td>
+                        <td>@UiFormat.RoleLabel(u.Role)</td>
+                        <td>@(u.DepartmentName ?? "—")</td>
+                        <td>
+                            @if (u.IsDeleted) { <span class="chip chip-muted">Deleted</span> }
+                            else if (u.Status == "suspended") { <span class="chip chip-rejected">Suspended</span> }
+                            else { <span class="chip chip-resolved">Active</span> }
+                        </td>
+                        <td class="num">@u.ReportCount</td>
+                        <td class="num">@UiFormat.Date(u.CreatedAt)</td>
+                        <td class="num">
+                            @if (!u.IsDeleted)
+                            {
+                                <a class="btn btn-soft btn-sm" asp-action="UserEdit" asp-route-id="@u.Id">Edit</a>
+                                @if (u.Id != Model.CurrentUserId)
+                                {
+                                    <form asp-action="UserStatus" asp-route-id="@u.Id" method="post" class="d-inline">
+                                        @if (u.Status == "suspended")
+                                        {
+                                            <input type="hidden" name="status" value="active" />
+                                            <button type="submit" class="btn btn-soft btn-sm">Reactivate</button>
+                                        }
+                                        else
+                                        {
+                                            <input type="hidden" name="status" value="suspended" />
+                                            <button type="submit" class="btn btn-danger-soft btn-sm" data-confirm="Suspend @(u.FullName)? They will be signed out and cannot log in.">Suspend</button>
+                                        }
+                                    </form>
+                                }
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="pager" />
+    }
+</section>

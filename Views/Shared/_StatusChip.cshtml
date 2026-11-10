@@ -1,0 +1,3 @@
+@using product_website.Services
+@model string
+<span class="chip chip-@Model"><span aria-hidden="true">@UiFormat.StatusGlyph(Model)</span>@UiFormat.StatusLabel(Model)</span>

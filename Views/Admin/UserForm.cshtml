@@ -1,0 +1,89 @@
+@model UserFormModel
+@{
+    var creating = Model.Id == 0;
+    ViewData["Title"] = creating ? "Add staff account" : "Edit user";
+}
+
+<div class="page-head">
+    <div>
+        <a class="form-hint text-decoration-none" asp-action="Users">&larr; Users</a>
+        <h1 class="page-title">@ViewData["Title"]</h1>
+    </div>
+</div>
+
+<section class="panel form-narrow">
+    <form asp-action="@(creating ? "UserCreate" : "UserEdit")" method="post" novalidate>
+        <input type="hidden" asp-for="Id" />
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+        <div class="row g-3">
+            <div class="col-sm-6">
+                <label asp-for="FirstName" class="form-label">First name</label>
+                <input asp-for="FirstName" class="form-control" />
+                <span asp-validation-for="FirstName" class="field-error"></span>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="LastName" class="form-label">Last name</label>
+                <input asp-for="LastName" class="form-control" />
+                <span asp-validation-for="LastName" class="field-error"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Email" class="form-label">Email</label>
+                <input asp-for="Email" type="email" class="form-control" />
+                <span asp-validation-for="Email" class="field-error"></span>
+            </div>
+            <div class="col-sm-6">
+                <label asp-for="Role" class="form-label">Role</label>
+                <select asp-for="Role" class="form-select" id="user-role" disabled="@Model.IsSelf">
+                    <option value="operator">Operator</option>
+                    <option value="admin">Admin</option>
+                    @if (!creating) { <option value="citizen">Citizen</option> }
+                </select>
+                @if (Model.IsSelf)
+                {
+                    <input type="hidden" asp-for="Role" />
+                    <div class="form-hint">You cannot change your own role.</div>
+                }
+                <span asp-validation-for="Role" class="field-error"></span>
+            </div>
+            <div class="col-sm-6" id="department-field">
+                <label asp-for="DepartmentId" class="form-label">Department</label>
+                <select asp-for="DepartmentId" class="form-select">
+                    <option value="">None</option>
+                    @foreach (var d in Model.Departments)
+                    {
+                        <option value="@d.Id" selected="@(Model.DepartmentId == d.Id)">@d.Name</option>
+                    }
+                </select>
+                <div class="form-hint">Operators only see issues of this department.</div>
+                <span asp-validation-for="DepartmentId" class="field-error"></span>
+            </div>
+            <div class="col-12">
+                <label asp-for="Password" class="form-label">@(creating ? "Password" : "New password")</label>
+                <input asp-for="Password" type="password" class="form-control" autocomplete="new-password" />
+                <div class="form-hint">@(creating ? "At least 8 characters. Share it with the person safely and ask them to change it." : "Leave empty to keep the current password.")</div>
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-navy">@(creating ? "Create account" : "Save changes")</button>
+            <a class="btn btn-soft" asp-action="Users">Cancel</a>
+        </div>
+    </form>
+</section>
+
+@section Scripts {
+<script>
+    (function () {
+        var role = document.getElementById('user-role');
+        var field = document.getElementById('department-field');
+        if (!role || !field) return;
+        function sync() {
+            var isOperator = role.value === 'operator';
+            field.style.display = isOperator ? '' : 'none';
+            if (!isOperator) { var sel = field.querySelector('select'); if (sel) sel.value = ''; }
+        }
+        role.addEventListener('change', sync);
+        sync();
+    })();
+</script>
+}

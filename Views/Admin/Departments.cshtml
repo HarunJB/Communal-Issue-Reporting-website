@@ -1,0 +1,40 @@
+@model List<DepartmentRow>
+@{ ViewData["Title"] = "Departments"; }
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">Departments</h1>
+        <div class="page-sub">Public utilities and city services that receive reports</div>
+    </div>
+    <a class="btn btn-navy" asp-action="DepartmentEdit">Add department</a>
+</div>
+
+<section class="panel flush">
+    @if (Model.Count == 0)
+    {
+        <div class="empty-state"><strong>No departments yet</strong></div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-dash">
+                <thead><tr><th>English</th><th>Bosnian</th><th>Contact</th><th>Status</th><th class="num">Operators</th><th class="num">Categories</th><th class="num">Open reports</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var d in Model)
+                {
+                    <tr>
+                        <td><strong>@d.NameEn</strong></td>
+                        <td>@d.NameBs</td>
+                        <td>@(d.ContactEmail ?? "—")</td>
+                        <td>@if (d.IsActive) { <span class="chip chip-resolved">Active</span> } else { <span class="chip chip-muted">Inactive</span> }</td>
+                        <td class="num">@d.OperatorCount</td>
+                        <td class="num">@d.CategoryCount</td>
+                        <td class="num">@d.OpenReports</td>
+                        <td class="num"><a class="btn btn-soft btn-sm" asp-action="DepartmentEdit" asp-route-id="@d.Id">Edit</a></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

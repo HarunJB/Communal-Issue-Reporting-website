@@ -1,0 +1,27 @@
+@model product_website.Models.PagerModel
+@{
+    var from = Model.Total == 0 ? 0 : (Model.Page - 1) * Model.PageSize + 1;
+    var to = Math.Min(Model.Page * Model.PageSize, Model.Total);
+}
+<div class="pager">
+    <span>@from&ndash;@to of @Model.Total @Model.Noun</span>
+    <div class="pager-links">
+        @if (Model.Page > 1)
+        {
+            <a href="@Model.LinkFor(Model.Page - 1)">&larr; Previous</a>
+        }
+        else
+        {
+            <span class="disabled">&larr; Previous</span>
+        }
+        <span class="align-self-center px-1">Page @Model.Page of @Model.TotalPages</span>
+        @if (Model.Page < Model.TotalPages)
+        {
+            <a href="@Model.LinkFor(Model.Page + 1)">Next &rarr;</a>
+        }
+        else
+        {
+            <span class="disabled">Next &rarr;</span>
+        }
+    </div>
+</div>

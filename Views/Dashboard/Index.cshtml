@@ -1,0 +1,167 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+    var k = Model.Kpis;
+    int Count(string s) => Model.StatusCounts.TryGetValue(s, out var c) ? c : 0;
+    var maxCat = Model.OpenByCategory.Count == 0 ? 1 : Math.Max(1, Model.OpenByCategory.Max(c => c.Count));
+    var maxDay = Model.Days.Count == 0 ? 1 : Math.Max(1, Model.Days.Max(d => Math.Max(d.Created, d.Resolved)));
+    var statusTotal = Math.Max(1, UiFormat.AllStatuses.Sum(s => Count(s)));
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">Dashboard</h1>
+        <div class="page-sub">@Model.ScopeName &middot; overview of citizen reports</div>
+    </div>
+    <a class="btn btn-navy" asp-controller="Issues" asp-action="Index">View all issues</a>
+</div>
+
+<div class="stat-grid">
+    <a class="stat-card text-decoration-none" asp-controller="Issues" asp-action="Index">
+        <div class="stat-label">Open issues</div>
+        <div class="stat-value">@k.Open</div>
+        <div class="stat-hint">not yet resolved or rejected</div>
+    </a>
+    <a class="stat-card warn text-decoration-none" asp-controller="Issues" asp-action="Index" asp-route-assigned="none">
+        <div class="stat-label">Unassigned</div>
+        <div class="stat-value">@k.Unassigned</div>
+        <div class="stat-hint">waiting for someone to take them</div>
+    </a>
+    <div class="stat-card">
+        <div class="stat-label">New today</div>
+        <div class="stat-value">@k.NewToday</div>
+        <div class="stat-hint">reported since midnight</div>
+    </div>
+    <div class="stat-card good">
+        <div class="stat-label">Resolved, last 7 days</div>
+        <div class="stat-value">@k.ResolvedLast7Days</div>
+        <div class="stat-hint">average @UiFormat.Hours(k.AvgResolutionHours) to resolve</div>
+    </div>
+    <div class="stat-card @(k.OlderThan7Days > 0 ? "warn" : "")">
+        <div class="stat-label">Older than 7 days</div>
+        <div class="stat-value">@k.OlderThan7Days</div>
+        <div class="stat-hint">open and still waiting</div>
+    </div>
+</div>
+
+<div class="row g-3 section-gap">
+    <div class="col-lg-7">
+        <section class="panel h-100">
+            <h2 class="panel-title">Last 14 days <small>created vs resolved</small></h2>
+            @if (Model.Days.Count == 0)
+            {
+                <div class="empty-state">No data yet.</div>
+            }
+            else
+            {
+                <div class="daychart" role="img" aria-label="Reports created and resolved per day, last 14 days">
+                    @foreach (var d in Model.Days)
+                    {
+                        <div class="day" title="@(d.Day.ToString("d MMM")): @(d.Created) created, @(d.Resolved) resolved">
+                            <div class="bars">
+                                <div class="bar created" style="height:@((d.Created * 100 / maxDay).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                                <div class="bar resolved" style="height:@((d.Resolved * 100 / maxDay).ToString(System.Globalization.CultureInfo.InvariantCulture))%"></div>
+                            </div>
+                            <div class="day-label">@d.Day.ToString("d/M")</div>
+                        </div>
+                    }
+                </div>
+                <div class="legend">
+                    <span><i style="background:var(--civic)"></i>Created</span>
+                    <span><i style="background:var(--amber)"></i>Resolved</span>
+                </div>
+            }
+        </section>
+    </div>
+    <div class="col-lg-5">
+        <section class="panel h-100">
+            <h2 class="panel-title">By status</h2>
+            @foreach (var s in UiFormat.AllStatuses)
+            {
+                var fill = s switch { "resolved" => "green", "rejected" => "red", "in_progress" => "amber", "submitted" => "slate", _ => "" };
+                <a class="hbar text-decoration-none" asp-controller="Issues" asp-action="Index" asp-route-status="@s">
+                    <span class="hbar-label">@UiFormat.StatusLabel(s)</span>
+                    <span class="hbar-track"><span class="hbar-fill @fill" style="width:@((Count(s) * 100 / statusTotal).ToString(System.Globalization.CultureInfo.InvariantCulture))%;display:block"></span></span>
+                    <span class="hbar-value">@Count(s)</span>
+                </a>
+            }
+        </section>
+    </div>
+</div>
+
+<div class="row g-3 section-gap">
+    <div class="col-lg-5">
+        <section class="panel h-100">
+            <h2 class="panel-title">Open issues by category</h2>
+            @if (Model.OpenByCategory.Count == 0)
+            {
+                <div class="empty-state"><strong>Nothing open</strong>All caught up.</div>
+            }
+            @foreach (var c in Model.OpenByCategory)
+            {
+                <div class="hbar">
+                    <span class="hbar-label" title="@c.Label">@c.Label</span>
+                    <span class="hbar-track"><span class="hbar-fill" style="width:@((c.Count * 100 / maxCat).ToString(System.Globalization.CultureInfo.InvariantCulture))%;display:block"></span></span>
+                    <span class="hbar-value">@c.Count</span>
+                </div>
+            }
+        </section>
+    </div>
+    <div class="col-lg-7">
+        <section class="panel flush h-100">
+            <div class="p-3 pb-0">
+                <h2 class="panel-title">Needs attention <small>@(Model.IsAdmin ? "high priority first, then oldest" : "oldest first")</small></h2>
+            </div>
+            @if (Model.NeedsAttention.Count == 0)
+            {
+                <div class="empty-state"><strong>Nothing waiting</strong>No open issues need attention.</div>
+            }
+            else
+            {
+                <div class="table-wrap">
+                    <table class="table-dash">
+                        <thead><tr><th>#</th><th>Issue</th><th>Status</th><th>Age</th></tr></thead>
+                        <tbody>
+                        @foreach (var r in Model.NeedsAttention)
+                        {
+                            <tr class="row-link" data-href="@Url.Action("Details", "Issues", new { id = r.Id })">
+                                <td class="num"><a asp-controller="Issues" asp-action="Details" asp-route-id="@r.Id">#@r.Id</a></td>
+                                <td class="cell-clip">
+                                    <strong>@r.CategoryName</strong>
+                                    @if (Model.IsAdmin && r.Priority == "high") { <partial name="_PriorityChip" model="r.Priority" /> }
+                                    <div class="muted">@(string.IsNullOrWhiteSpace(r.Address) ? "No address" : r.Address)</div>
+                                </td>
+                                <td><partial name="_StatusChip" model="r.Status" /></td>
+                                <td class="num @(UiFormat.AgeDays(r.CreatedAt) >= 7 ? "age-old" : "")">@UiFormat.Age(r.CreatedAt)</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    </div>
+</div>
+
+@if (Model.IsAdmin && Model.Departments.Count > 0)
+{
+    <section class="panel flush section-gap">
+        <div class="p-3 pb-0"><h2 class="panel-title">Departments</h2></div>
+        <div class="table-wrap">
+            <table class="table-dash">
+                <thead><tr><th>Department</th><th class="num">Open</th><th class="num">Resolved</th><th>Avg. resolution time</th></tr></thead>
+                <tbody>
+                @foreach (var d in Model.Departments)
+                {
+                    <tr class="row-link" data-href="@Url.Action("Index", "Issues", new { departmentId = d.Id })">
+                        <td><strong>@d.Name</strong></td>
+                        <td class="num">@d.Open</td>
+                        <td class="num">@d.Resolved</td>
+                        <td>@UiFormat.Hours(d.AvgResolutionHours)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}

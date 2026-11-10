@@ -1,0 +1,81 @@
+@model ReportListViewModel
+@{
+    ViewData["Title"] = "Map";
+    var f = Model.Filter;
+    var status = string.IsNullOrWhiteSpace(f.Status) ? "open" : f.Status;
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">Map</h1>
+        <div class="page-sub"><span id="map-count">Loading</span> &middot; click a pin to open the issue</div>
+    </div>
+    <a class="btn btn-soft" href="@StaffLinks.Issues("/Issues/Index", f)">Show as list</a>
+</div>
+
+<form method="get" action="/Issues/Map" class="filter-bar">
+    <div>
+        <label class="form-label" for="status">Status</label>
+        <select id="status" name="status" class="form-select">
+            @foreach (var s in new[] { "open", "submitted", "in_review", "assigned", "in_progress", "resolved", "rejected", "all" })
+            {
+                <option value="@s" selected="@(status == s)">@UiFormat.StatusLabel(s)</option>
+            }
+        </select>
+    </div>
+    <div>
+        <label class="form-label" for="categoryId">Category</label>
+        <select id="categoryId" name="categoryId" class="form-select">
+            <option value="">All</option>
+            @foreach (var c in Model.Categories)
+            {
+                <option value="@c.Id" selected="@(f.CategoryId == c.Id)">@c.Name</option>
+            }
+        </select>
+    </div>
+    @if (Model.IsAdmin)
+    {
+        <div>
+            <label class="form-label" for="departmentId">Department</label>
+            <select id="departmentId" name="departmentId" class="form-select">
+                <option value="">All</option>
+                @foreach (var d in Model.Departments)
+                {
+                    <option value="@d.Id" selected="@(f.DepartmentId == d.Id)">@d.Name</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="priority">Priority</label>
+            <select id="priority" name="priority" class="form-select">
+                <option value="">Any</option>
+                <option value="high" selected="@(f.Priority == "high")">High</option>
+                <option value="normal" selected="@(f.Priority == "normal")">Normal</option>
+                <option value="low" selected="@(f.Priority == "low")">Low</option>
+            </select>
+        </div>
+    }
+    <div>
+        <label class="form-label" for="assigned">Assignee</label>
+        <select id="assigned" name="assigned" class="form-select">
+            <option value="">Anyone</option>
+            <option value="me" selected="@(f.Assigned == "me")">Assigned to me</option>
+            <option value="none" selected="@(f.Assigned == "none")">Unassigned</option>
+        </select>
+    </div>
+    <div class="actions align-self-end">
+        <button type="submit" class="btn btn-navy">Apply</button>
+        <a class="btn btn-soft" href="/Issues/Map">Reset</a>
+    </div>
+</form>
+
+<section class="panel">
+    <div class="map-box tall" id="issues-map" data-url="@Url.Action("MapData", "Issues")" data-query="@Context.Request.QueryString.Value"></div>
+    <div class="map-legend mt-3">
+        <span><i style="background:#64748B"></i>Submitted</span>
+        <span><i style="background:var(--civic)"></i>In review / assigned</span>
+        <span><i style="background:var(--amber)"></i>In progress</span>
+        <span><i style="background:var(--success)"></i>Resolved</span>
+        <span><i style="background:var(--danger)"></i>Rejected</span>
+    </div>
+</section>

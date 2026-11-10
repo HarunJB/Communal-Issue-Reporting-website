@@ -120,6 +120,10 @@ public class AccountController : Controller
     [Authorize]
     public IActionResult Success()
     {
+        // Staff land on their dashboard; citizens (website visitors) see the confirmation page.
+        if (User.IsInRole("admin") || User.IsInRole("operator"))
+            return RedirectToAction("Index", "Dashboard");
+
         var model = new SuccessViewModel
         {
             Name = User.Identity?.Name ?? string.Empty,

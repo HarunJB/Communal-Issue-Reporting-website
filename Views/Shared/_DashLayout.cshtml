@@ -1,0 +1,80 @@
+@using System.Security.Claims
+@using product_website.Services
+@{
+    var controller = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
+    var action = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
+    var isAdmin = User.IsInRole("admin");
+    string Active(bool on) => on ? "active" : "";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Sarajevo Reports</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/leaflet/leaflet.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="site-header">
+        <nav class="navbar navbar-expand">
+            <div class="container-xl">
+                <a class="navbar-brand" asp-controller="Dashboard" asp-action="Index">
+                    <span class="brand-mark" aria-hidden="true"></span>Sarajevo Reports
+                </a>
+                <div class="ms-auto d-flex align-items-center gap-3">
+                    <span class="nav-user d-none d-sm-inline">@User.Identity?.Name</span>
+                    <span class="header-role @(isAdmin ? "is-admin" : "")">@(isAdmin ? "Admin" : "Operator")</span>
+                    <a class="nav-link-light d-none d-md-inline" asp-controller="Profile" asp-action="Password">Password</a>
+                    <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
+                        <button type="submit" class="btn btn-outline-light btn-sm">Log out</button>
+                    </form>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="dash-nav">
+        <div class="container-xl">
+            <div class="nav-scroll">
+                <a asp-controller="Dashboard" asp-action="Index" class="@Active(controller == "Dashboard")">Dashboard</a>
+                <a asp-controller="Issues" asp-action="Index" class="@Active(controller == "Issues" && action != "Map")">Issues</a>
+                <a asp-controller="Issues" asp-action="Map" class="@Active(controller == "Issues" && action == "Map")">Map</a>
+                @if (isAdmin)
+                {
+                    <span class="nav-divider" aria-hidden="true"></span>
+                    <span class="nav-label">Admin</span>
+                    <a asp-controller="Admin" asp-action="Users" class="@Active(controller == "Admin" && action.StartsWith("User"))">Users</a>
+                    <a asp-controller="Admin" asp-action="Categories" class="@Active(controller == "Admin" && action.StartsWith("Categor"))">Categories</a>
+                    <a asp-controller="Admin" asp-action="Departments" class="@Active(controller == "Admin" && action.StartsWith("Department"))">Departments</a>
+                    <a asp-controller="Admin" asp-action="Audit" class="@Active(controller == "Admin" && action == "Audit")">Audit log</a>
+                }
+            </div>
+        </div>
+    </div>
+
+    <main class="container-xl dash-main">
+        @if (TempData["Message"] is string message)
+        {
+            <div class="alert alert-success flash" role="status">@message</div>
+        }
+        @if (TempData["Error"] is string error)
+        {
+            <div class="alert alert-danger flash" role="alert">@error</div>
+        }
+        @RenderBody()
+    </main>
+
+    <footer class="site-footer">
+        <div class="container-xl">Senior design project &middot; Sarajevo communal issue reporting &middot; Map data &copy; OpenStreetMap contributors</div>
+    </footer>
+
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/lib/leaflet/leaflet.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/dashboard.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

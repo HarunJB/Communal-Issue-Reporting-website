@@ -1,0 +1,167 @@
+@model ReportListViewModel
+@{
+    ViewData["Title"] = "Issues";
+    var f = Model.Filter;
+    var status = string.IsNullOrWhiteSpace(f.Status) ? "open" : f.Status;
+    var sort = string.IsNullOrWhiteSpace(f.Sort) ? "oldest" : f.Sort;
+    int Count(string s) => Model.Counts.TryGetValue(s, out var c) ? c : 0;
+    var openCount = UiFormat.OpenStatuses.Sum(s => Count(s));
+    var allCount = UiFormat.AllStatuses.Sum(s => Count(s));
+    var pills = new List<(string Key, string Label, int Count)>
+    {
+        ("open", "Open", openCount), ("submitted", "Submitted", Count("submitted")),
+        ("in_review", "In review", Count("in_review")), ("assigned", "Assigned", Count("assigned")),
+        ("in_progress", "In progress", Count("in_progress")), ("resolved", "Resolved", Count("resolved")),
+        ("rejected", "Rejected", Count("rejected")), ("all", "All", allCount)
+    };
+    var pager = new PagerModel
+    {
+        Page = Model.Page, TotalPages = Model.TotalPages, Total = Model.Total, PageSize = Model.PageSize, Noun = "issues",
+        LinkFor = p => StaffLinks.Issues("/Issues/Index", f, null, p)
+    };
+}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">Issues@(f.Archived ? " (archived)" : "")</h1>
+        <div class="page-sub">
+            @(Model.IsAdmin ? "All departments" : (Model.DepartmentName ?? "Your department"))
+            &middot; @Model.Total @(Model.Total == 1 ? "issue" : "issues") match
+        </div>
+    </div>
+    <a class="btn btn-soft" href="@StaffLinks.Issues("/Issues/Map", f)">Show on map</a>
+</div>
+
+<div class="status-pills">
+    @foreach (var p in pills)
+    {
+        <a href="@StaffLinks.Issues("/Issues/Index", f, p.Key, null, true)" class="@(status == p.Key ? "active" : "")">
+            @p.Label <span class="count">@p.Count</span>
+        </a>
+    }
+</div>
+
+<form method="get" action="/Issues/Index" class="filter-bar">
+    <input type="hidden" name="status" value="@status" />
+    <div>
+        <label class="form-label" for="q">Search</label>
+        <input id="q" name="q" value="@f.Q" class="form-control" placeholder="Address, text or #number" />
+    </div>
+    <div>
+        <label class="form-label" for="categoryId">Category</label>
+        <select id="categoryId" name="categoryId" class="form-select">
+            <option value="">All</option>
+            @foreach (var c in Model.Categories)
+            {
+                <option value="@c.Id" selected="@(f.CategoryId == c.Id)">@c.Name</option>
+            }
+        </select>
+    </div>
+    @if (Model.IsAdmin)
+    {
+        <div>
+            <label class="form-label" for="departmentId">Department</label>
+            <select id="departmentId" name="departmentId" class="form-select">
+                <option value="">All</option>
+                @foreach (var d in Model.Departments)
+                {
+                    <option value="@d.Id" selected="@(f.DepartmentId == d.Id)">@d.Name</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="form-label" for="priority">Priority</label>
+            <select id="priority" name="priority" class="form-select">
+                <option value="">Any</option>
+                <option value="high" selected="@(f.Priority == "high")">High</option>
+                <option value="normal" selected="@(f.Priority == "normal")">Normal</option>
+                <option value="low" selected="@(f.Priority == "low")">Low</option>
+            </select>
+        </div>
+    }
+    <div>
+        <label class="form-label" for="assigned">Assignee</label>
+        <select id="assigned" name="assigned" class="form-select">
+            <option value="">Anyone</option>
+            <option value="me" selected="@(f.Assigned == "me")">Assigned to me</option>
+            <option value="none" selected="@(f.Assigned == "none")">Unassigned</option>
+        </select>
+    </div>
+    <div>
+        <label class="form-label" for="from">From</label>
+        <input id="from" type="date" name="from" value="@(f.From?.ToString("yyyy-MM-dd"))" class="form-control" />
+    </div>
+    <div>
+        <label class="form-label" for="to">To</label>
+        <input id="to" type="date" name="to" value="@(f.To?.ToString("yyyy-MM-dd"))" class="form-control" />
+    </div>
+    <div>
+        <label class="form-label" for="sort">Sort by</label>
+        <select id="sort" name="sort" class="form-select">
+            <option value="oldest" selected="@(sort == "oldest")">Oldest first</option>
+            <option value="newest" selected="@(sort == "newest")">Newest first</option>
+            @if (Model.IsAdmin)
+            {
+                <option value="priority" selected="@(sort == "priority")">Priority</option>
+            }
+            <option value="supports" selected="@(sort == "supports")">Most supported</option>
+        </select>
+    </div>
+    <div class="form-check align-self-end mb-2">
+        <input class="form-check-input" type="checkbox" id="archived" name="archived" value="true" checked="@f.Archived" />
+        <label class="form-check-label" for="archived">Archived</label>
+    </div>
+    <div class="actions align-self-end">
+        <button type="submit" class="btn btn-navy">Apply</button>
+        <a class="btn btn-soft" href="/Issues/Index">Reset</a>
+    </div>
+</form>
+
+<section class="panel flush">
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty-state"><strong>No issues found</strong>Try a different status or clear some filters.</div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-dash">
+                <thead>
+                <tr>
+                    <th></th><th>#</th><th>Issue</th><th>Status</th>
+                    @if (Model.IsAdmin) { <th>Priority</th><th>Department</th> }
+                    <th>Assigned to</th><th class="num">Support</th><th>Reported</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var r in Model.Items)
+                {
+                    <tr class="row-link" data-href="@Url.Action("Details", "Issues", new { id = r.Id })">
+                        <td>
+                            @if (!string.IsNullOrEmpty(r.ThumbnailUrl)) { <img class="thumb" src="@r.ThumbnailUrl" alt="" loading="lazy" /> }
+                            else { <span class="thumb thumb-empty" aria-hidden="true">&ndash;</span> }
+                        </td>
+                        <td class="num"><a asp-action="Details" asp-route-id="@r.Id">#@r.Id</a></td>
+                        <td class="cell-clip">
+                            <strong>@r.CategoryName</strong>
+                            @if (r.IsArchived) { <span class="chip chip-muted">Archived</span> }
+                            <div class="muted">@(string.IsNullOrWhiteSpace(r.Address) ? "No address" : r.Address)</div>
+                            @if (!string.IsNullOrWhiteSpace(r.Description)) { <div class="muted">@UiFormat.Short(r.Description, 90)</div> }
+                        </td>
+                        <td><partial name="_StatusChip" model="r.Status" /></td>
+                        @if (Model.IsAdmin)
+                        {
+                            <td><partial name="_PriorityChip" model="r.Priority" /></td>
+                            <td>@r.DepartmentName</td>
+                        }
+                        <td>@(r.AssignedName ?? "—")</td>
+                        <td class="num">@r.SupportCount</td>
+                        <td class="num @(UiFormat.AgeDays(r.CreatedAt) >= 7 && UiFormat.OpenStatuses.Contains(r.Status) ? "age-old" : "")" title="@UiFormat.DateTimeText(r.CreatedAt)">@UiFormat.Age(r.CreatedAt)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <partial name="_Pager" model="pager" />
+    }
+</section>
