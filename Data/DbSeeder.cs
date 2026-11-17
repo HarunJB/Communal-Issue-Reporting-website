@@ -46,10 +46,12 @@ public static class DbSeeder
         new("Other issue", "Ostalo", "other", "General Municipal Services", "low"),
     };
 
-    public static async Task SeedAsync(NpgsqlDataSource db)
+    /// <summary>
+    /// Creates the departments and report categories if they are missing. Safe to run on every start.
+    /// Used both by the development seeder and by the production start-up (no demo accounts, no demo reports).
+    /// </summary>
+    public static async Task<Dictionary<string, int>> EnsureReferenceDataAsync(NpgsqlConnection conn)
     {
-        await using var conn = await db.OpenConnectionAsync();
-
         var departmentIds = new Dictionary<string, int>();
         foreach (var department in Departments)
             departmentIds[department.En] = await EnsureDepartmentAsync(conn, department);
@@ -72,6 +74,15 @@ public static class DbSeeder
                     });
             }
         }
+
+        return departmentIds;
+    }
+
+    public static async Task SeedAsync(NpgsqlDataSource db)
+    {
+        await using var conn = await db.OpenConnectionAsync();
+
+        var departmentIds = await EnsureReferenceDataAsync(conn);
 
         // An operator must belong to a department (see CHECK constraint in schema.sql).
         var operatorDepartmentId = departmentIds["Water and Sewage Company"];

@@ -1,0 +1,118 @@
+/* Header badges, the notification bell and the first-login banner. */
+
+/* ---- Badges at the right end of the tab bar ---- */
+.dash-nav .alert-chips {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-left: 1rem;
+}
+
+.dash-nav a.alert-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--card-border);
+    border-bottom-width: 1px;
+    border-radius: 999px;
+    background: var(--offwhite);
+    color: var(--slate);
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.dash-nav a.alert-chip .alert-count {
+    min-width: 1.4rem;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    background: #fff;
+    border: 1px solid var(--card-border);
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.dash-nav a.alert-chip.has-alerts {
+    background: #FFF4DC;
+    border-color: var(--amber);
+    color: var(--navy);
+}
+
+.dash-nav a.alert-chip.has-alerts .alert-count {
+    background: var(--amber);
+    border-color: var(--amber-dark);
+    color: var(--navy);
+}
+
+.dash-nav a.alert-chip:hover { background: var(--pale); }
+.dash-nav a.alert-chip.has-alerts:hover { background: #FFEBC2; }
+
+/* ---- Bell button in the navy header ---- */
+.notif-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    border-radius: 50%;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+}
+
+.notif-toggle:hover { background: rgba(255, 255, 255, 0.12); }
+.notif-toggle svg { width: 1.15rem; height: 1.15rem; }
+.notif-toggle .bell-slash { display: none; }
+.notif-toggle.is-off, .notif-toggle.is-blocked { color: rgba(255, 255, 255, 0.6); }
+.notif-toggle.is-off .bell-slash, .notif-toggle.is-blocked .bell-slash { display: block; }
+.notif-toggle.is-on::after {
+    content: "";
+    position: absolute;
+    top: 0.3rem;
+    right: 0.3rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--amber);
+    border: 1px solid var(--navy);
+}
+
+/* ---- First-login banner ---- */
+.notif-banner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    padding: 0.85rem 1rem;
+    background: var(--pale);
+    border: 1px solid #C9DCEC;
+    border-left: 4px solid var(--amber);
+    border-radius: 0.6rem;
+    color: var(--navy);
+}
+
+.notif-banner[hidden] { display: none; }
+.notif-banner .notif-text { flex: 1 1 16rem; margin: 0; }
+.notif-banner .notif-text strong { display: block; }
+.notif-banner .notif-text span { color: var(--slate); font-size: 0.9rem; }
+.notif-banner .notif-actions { display: flex; gap: 0.5rem; }
+
+/* ---- Small message ---- */
+.alerts-toast {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 2000;
+    max-width: 22rem;
+    padding: 0.75rem 1rem;
+    background: var(--navy);
+    color: #fff;
+    border-radius: 0.6rem;
+    box-shadow: 0 8px 24px rgba(23, 50, 77, 0.3);
+    font-size: 0.92rem;
+}

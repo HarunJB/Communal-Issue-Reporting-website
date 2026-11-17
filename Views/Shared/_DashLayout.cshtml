@@ -16,8 +16,9 @@
     <link rel="stylesheet" href="~/lib/leaflet/leaflet.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/alerts.css" asp-append-version="true" />
 </head>
-<body>
+<body data-user-id="@User.FindFirstValue(ClaimTypes.NameIdentifier)" data-alerts-url="@Url.Action("Counts", "Alerts")" data-autoreload="@((controller == "Dashboard" || controller == "Alerts") ? "1" : null)">
     <header class="site-header">
         <nav class="navbar navbar-expand">
             <div class="container-xl">
@@ -27,6 +28,13 @@
                 <div class="ms-auto d-flex align-items-center gap-3">
                     <span class="nav-user d-none d-sm-inline">@User.Identity?.Name</span>
                     <span class="header-role @(isAdmin ? "is-admin" : "")">@(isAdmin ? "Admin" : "Operator")</span>
+                    <button type="button" id="notif-toggle" class="notif-toggle is-off" aria-label="Browser notifications" title="Notifications">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                            <line class="bell-slash" x1="3" y1="3" x2="21" y2="21" />
+                        </svg>
+                    </button>
                     <a class="nav-link-light d-none d-md-inline" asp-controller="Profile" asp-action="Password">Password</a>
                     <form asp-controller="Account" asp-action="Logout" method="post" class="m-0">
                         <button type="submit" class="btn btn-outline-light btn-sm">Log out</button>
@@ -51,11 +59,32 @@
                     <a asp-controller="Admin" asp-action="Departments" class="@Active(controller == "Admin" && action.StartsWith("Department"))">Departments</a>
                     <a asp-controller="Admin" asp-action="Audit" class="@Active(controller == "Admin" && action == "Audit")">Audit log</a>
                 }
+                <div class="alert-chips">
+                    @if (isAdmin)
+                    {
+                        <a class="alert-chip" data-alert="needsTriage" href="@Url.Action("Index", "Alerts", new { kind = "triage" })" title="Open reports nobody can pick up">Needs triage <span class="alert-count">0</span></a>
+                        <a class="alert-chip" data-alert="stale" href="@Url.Action("Index", "Alerts", new { kind = "stale" })" title="Unassigned for 24 hours, or no change for 7 days">Stale <span class="alert-count">0</span></a>
+                    }
+                    else
+                    {
+                        <a class="alert-chip" data-alert="unassigned" href="@Url.Action("Index", "Alerts", new { kind = "unassigned" })" title="Open reports in your department that nobody has taken">Unassigned <span class="alert-count">0</span></a>
+                    }
+                </div>
             </div>
         </div>
     </div>
 
     <main class="container-xl dash-main">
+        <div id="notif-banner" class="notif-banner" hidden>
+            <p class="notif-text">
+                <strong>Get notified about reports that need you?</strong>
+                <span>Your browser will show a short pop-up when new reports arrive. You can change this any time with the bell at the top.</span>
+            </p>
+            <div class="notif-actions">
+                <button type="button" id="notif-enable" class="btn btn-navy btn-sm">Enable</button>
+                <button type="button" id="notif-later" class="btn btn-soft btn-sm">Not now</button>
+            </div>
+        </div>
         @if (TempData["Message"] is string message)
         {
             <div class="alert alert-success flash" role="status">@message</div>
@@ -75,6 +104,7 @@
     <script src="~/lib/leaflet/leaflet.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <script src="~/js/dashboard.js" asp-append-version="true"></script>
+    <script src="~/js/alerts.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

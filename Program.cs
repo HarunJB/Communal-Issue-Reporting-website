@@ -5,6 +5,7 @@ using Dapper;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
@@ -42,9 +43,24 @@ builder.Services.AddScoped<ReportRepository>();
 builder.Services.AddScoped<NotificationRepository>();
 builder.Services.AddScoped<StaffReportRepository>();
 builder.Services.AddScoped<DashboardRepository>();
+builder.Services.AddScoped<AlertRepository>();
 builder.Services.AddScoped<AdminRepository>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<PhotoStorage>();
+
+// Push notifications to the phones (Firebase). Switched off automatically if no key is configured.
+builder.Services.AddSingleton<DeviceTokenRepository>();
+builder.Services.AddSingleton<PushSender>();
+builder.Services.AddHostedService<PushDispatcher>();
+
+// The live host (Azure) ends the HTTPS connection and passes requests on as plain http.
+// These headers tell the app the visitor really used https, so redirects and secure cookies work.
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 // ---------- Authentication ----------
 // Website: cookie. Mobile app (/api/...): JWT bearer token.
@@ -61,6 +77,10 @@ builder.Services
         options.SlidingExpiration = true;
         options.Cookie.HttpOnly = true;
         options.Cookie.SameSite = SameSiteMode.Lax;
+        // On the live site the login cookie only travels over https.
+        options.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+            ? CookieSecurePolicy.SameAsRequest
+            : CookieSecurePolicy.Always;
 
         // On every website request: the account must still exist, be active and keep the same role.
         // Suspending a user or changing a role signs them out of the dashboard right away.
@@ -136,15 +156,19 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders(); // must be first
+
 if (!app.Environment.IsDevelopment())
 {
-    app.UseExceptionHandler("/Home/Error");
+    app.UseExceptionHandler("/Error");
     app.UseHsts();
     // Not used in Development so the emulator can reach the plain http:// address.
     app.UseHttpsRedirection();
 }
 
-// ---------- Demo data (development only) ----------
+// ---------- Start-up data ----------
+// Development: demo departments, accounts and reports.
+// Live site: only the departments/categories and the first accounts from the "Bootstrap" settings (no demo data).
 if (app.Environment.IsDevelopment())
 {
     try
@@ -156,6 +180,20 @@ if (app.Environment.IsDevelopment())
         app.Logger.LogError(ex,
             "Could not seed demo data. Check the connection string " +
             "and make sure schema.sql has been run on the database.");
+    }
+}
+else
+{
+    try
+    {
+        await ProductionBootstrap.RunAsync(
+            app.Services.GetRequiredService<NpgsqlDataSource>(), app.Configuration, app.Logger);
+    }
+    catch (Exception ex)
+    {
+        // The site still starts, so /healthz can show what is wrong.
+        app.Logger.LogError(ex,
+            "Start-up setup failed. Check the connection string and that schema.sql has been run on the live database.");
     }
 }
 
@@ -177,6 +215,21 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Simple check for you (and Azure): open /healthz and you should see "ok" if the site and the database are alive.
+app.MapGet("/healthz", async (NpgsqlDataSource db) =>
+{
+    try
+    {
+        await using var conn = await db.OpenConnectionAsync();
+        await conn.ExecuteScalarAsync<int>("SELECT 1");
+        return Results.Text("ok");
+    }
+    catch
+    {
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+});
 
 app.MapControllerRoute(
     name: "default",

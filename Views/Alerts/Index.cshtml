@@ -1,0 +1,48 @@
+@model AlertListViewModel
+@{ ViewData["Title"] = Model.Title; }
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">@Model.Title</h1>
+        <div class="page-sub">@Model.Explanation</div>
+    </div>
+    <a class="btn btn-soft" asp-controller="Issues" asp-action="Index">All issues</a>
+</div>
+
+<section class="panel flush">
+    @if (Model.Items.Count == 0)
+    {
+        <div class="empty-state"><strong>Nothing here</strong>All clear.</div>
+    }
+    else
+    {
+        <div class="table-wrap">
+            <table class="table-dash">
+                <thead>
+                <tr>
+                    <th>#</th><th>Issue</th><th>Status</th>
+                    @if (User.IsInRole("admin")) { <th>Department</th> }
+                    <th>Assigned to</th><th>Reported</th><th>Last change</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var r in Model.Items)
+                {
+                    <tr class="row-link" data-href="@Url.Action("Details", "Issues", new { id = r.Id })">
+                        <td class="num"><a asp-controller="Issues" asp-action="Details" asp-route-id="@r.Id">#@r.Id</a></td>
+                        <td class="cell-clip">
+                            <strong>@r.CategoryName</strong>
+                            <div class="muted">@(string.IsNullOrWhiteSpace(r.Address) ? "No address" : r.Address)</div>
+                        </td>
+                        <td><partial name="_StatusChip" model="r.Status" /></td>
+                        @if (User.IsInRole("admin")) { <td>@r.DepartmentName</td> }
+                        <td>@(r.AssignedName ?? "—")</td>
+                        <td class="num @(UiFormat.AgeDays(r.CreatedAt) >= 7 ? "age-old" : "")" title="@UiFormat.DateTimeText(r.CreatedAt)">@UiFormat.Age(r.CreatedAt)</td>
+                        <td class="num" title="@UiFormat.DateTimeText(r.UpdatedAt)">@UiFormat.Age(r.UpdatedAt)</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
