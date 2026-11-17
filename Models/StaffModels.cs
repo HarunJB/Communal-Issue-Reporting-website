@@ -141,6 +141,11 @@ public class StaffReportDetail
     public string? AuthorPhone { get; set; }
     public int SupportCount { get; set; }
 
+    /// <summary>The reporter's trust score (null when the reporter is not a citizen account).</summary>
+    public int? AuthorTrustScore { get; set; }
+    public int AuthorConfirmed { get; set; }
+    public int AuthorFalseReports { get; set; }
+
     public List<StaffPhotoItem> Photos { get; set; } = new();
     public List<StaffHistoryItem> History { get; set; } = new();
     public List<StaffCommentItem> Comments { get; set; } = new();
@@ -175,6 +180,9 @@ public class StatusForm
 
     [StringLength(1000)]
     public string? PublicComment { get; set; }
+
+    /// <summary>Why a report is rejected: not_found, duplicate, out_of_scope or other.</summary>
+    public string? RejectionCode { get; set; }
 }
 
 public class AssignForm
@@ -208,6 +216,9 @@ public class SaveAllForm
     public string? Status { get; set; }
     public string? Note { get; set; }
     public string? PublicComment { get; set; }
+
+    /// <summary>Why a report is rejected: not_found, duplicate, out_of_scope or other.</summary>
+    public string? RejectionCode { get; set; }
 
     /// <summary>0 = nobody; null = field not sent.</summary>
     public int? AssigneeId { get; set; }
@@ -281,6 +292,10 @@ public class UserRow
     public DateTime CreatedAt { get; set; }
     public int ReportCount { get; set; }
     public bool IsDeleted { get; set; }
+
+    /// <summary>Trust score of a citizen (null for staff).</summary>
+    public int? TrustScore { get; set; }
+
     public string FullName => $"{FirstName} {LastName}".Trim();
 }
 
@@ -321,6 +336,10 @@ public class UserFormModel
 
     public List<Option> Departments { get; set; } = new();
     public bool IsSelf { get; set; }
+
+    /// <summary>Filled on the edit page of a citizen: their trust score and its history.</summary>
+    public ReputationSummary? Reputation { get; set; }
+    public List<ReputationEventRow> ReputationEvents { get; set; } = new();
 }
 
 // ----- Admin: categories and departments -----

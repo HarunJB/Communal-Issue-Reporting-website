@@ -58,7 +58,7 @@
     {
         <div class="table-wrap">
             <table class="table-dash">
-                <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Status</th><th class="num">Reports</th><th>Joined</th><th></th></tr></thead>
+                <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Status</th><th>Trust</th><th class="num">Reports</th><th>Joined</th><th></th></tr></thead>
                 <tbody>
                 @foreach (var u in Model.Users)
                 {
@@ -70,6 +70,10 @@
                             @if (u.IsDeleted) { <span class="chip chip-muted">Deleted</span> }
                             else if (u.Status == "suspended") { <span class="chip chip-rejected">Suspended</span> }
                             else { <span class="chip chip-resolved">Active</span> }
+                        </td>
+                        <td>
+                            @if (u.TrustScore is int ts) { <span class="chip @ReputationRules.ChipClass(ts)">@ts &middot; @ReputationRules.LevelLabel(ts)</span> }
+                            else { <span class="muted">&mdash;</span> }
                         </td>
                         <td class="num">@u.ReportCount</td>
                         <td class="num">@UiFormat.Date(u.CreatedAt)</td>

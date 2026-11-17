@@ -39,6 +39,13 @@
                         <span>@r.AuthorName</span>
                         @if (!string.IsNullOrWhiteSpace(r.AuthorEmail)) { <div class="form-hint">@r.AuthorEmail@(string.IsNullOrWhiteSpace(r.AuthorPhone) ? "" : " · " + r.AuthorPhone)</div> }
                     }
+                    @if (r.AuthorTrustScore is int trust)
+                    {
+                        <div class="mt-1">
+                            <span class="chip @ReputationRules.ChipClass(trust)">Trust @trust &middot; @ReputationRules.LevelLabel(trust)</span>
+                            <span class="form-hint">@r.AuthorConfirmed confirmed, @r.AuthorFalseReports not found</span>
+                        </div>
+                    }
                 </dd>
                 <dt>Source</dt>
                 <dd>@(r.Source == "mobile" ? "Mobile app" : "Website")</dd>
@@ -145,6 +152,20 @@
                     </select>
                     <label class="form-label form-hint mb-1" for="status-note">Note <span data-note-hint>(optional, internal history)</span></label>
                     <textarea id="status-note" name="Note" rows="2" maxlength="500" class="form-control mb-2"></textarea>
+
+                    <div id="reject-block" style="display:none">
+                        <label class="form-label form-hint mb-1" for="reject-code">Rejection reason type (required)</label>
+                        <select id="reject-code" name="RejectionCode" class="form-select mb-1">
+                            <option value="">Choose&hellip;</option>
+                            @foreach (var code in ReputationRules.RejectionCodes)
+                            {
+                                <option value="@code">@ReputationRules.RejectionCodeLabel(code)</option>
+                            }
+                        </select>
+                        <div class="form-hint mb-2" id="reject-warning" style="display:none">
+                            The reporter loses @ReputationRules.FalsePenalty trust points. Choose this only if you checked and the problem is really not there.
+                        </div>
+                    </div>
                     <label class="form-label form-hint mb-1" for="status-public">Message to the citizen (optional)</label>
                     <textarea id="status-public" name="PublicComment" rows="2" maxlength="1000" class="form-control"></textarea>
                 </div>
@@ -240,3 +261,27 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+<script>
+    (function () {
+        var status = document.querySelector('#saveall select[name="Status"]');
+        var block = document.getElementById('reject-block');
+        var code = document.getElementById('reject-code');
+        var warning = document.getElementById('reject-warning');
+        if (!status || !block || !code) return;
+
+        var current = '@r.Status';
+
+        function sync() {
+            var show = status.value === 'rejected' && current !== 'rejected';
+            block.style.display = show ? '' : 'none';
+            if (!show) code.value = '';
+            if (warning) warning.style.display = (show && code.value === 'not_found') ? '' : 'none';
+        }
+        status.addEventListener('change', sync);
+        code.addEventListener('change', sync);
+        sync();
+    })();
+</script>
+}

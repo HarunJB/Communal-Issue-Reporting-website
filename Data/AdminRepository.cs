@@ -65,7 +65,8 @@ public class AdminRepository
             SELECT u.id, u.email, u.first_name, u.last_name, u.role::text AS role, u.status::text AS status,
                    u.department_id, d.name_en AS department_name, u.created_at,
                    (u.deleted_at IS NOT NULL) AS is_deleted,
-                   (SELECT COUNT(*)::int FROM reports r WHERE r.user_id = u.id) AS report_count
+                   (SELECT COUNT(*)::int FROM reports r WHERE r.user_id = u.id) AS report_count,
+                   CASE WHEN u.role = 'citizen' THEN u.trust_score END AS trust_score
             FROM users u
             LEFT JOIN departments d ON d.id = u.department_id
             {whereSql}

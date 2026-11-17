@@ -71,6 +71,67 @@
     </form>
 </section>
 
+@if (!creating && Model.Reputation is not null)
+{
+    var rep = Model.Reputation;
+    <section class="panel form-narrow section-gap">
+        <h2 class="panel-title">Trust score</h2>
+        <p class="mb-2">
+            <span class="chip @ReputationRules.ChipClass(rep.Score)">@rep.Score &middot; @rep.LevelLabel</span>
+            <span class="form-hint">
+                @rep.Confirmed confirmed reports, @rep.FalseReports rejected as not found &middot;
+                today @rep.ReportsToday of @rep.DailyLimit reports allowed
+            </span>
+        </p>
+        <div class="form-hint mb-3">
+            Staff decisions on reports change the score automatically (+@ReputationRules.ConfirmedPoints when a report is accepted,
+            &minus;@ReputationRules.FalsePenalty when rejected as &ldquo;not found&rdquo;). Use the form below only to correct a mistake or for special cases.
+        </div>
+
+        <form asp-action="AdjustScore" asp-route-id="@Model.Id" method="post" class="row g-2 align-items-end">
+            <div class="col-sm-3">
+                <label class="form-label" for="score-delta">Points</label>
+                <input id="score-delta" name="delta" type="number" min="-100" max="100" step="1" class="form-control" placeholder="e.g. 15 or -10" required />
+            </div>
+            <div class="col-sm-6">
+                <label class="form-label" for="score-note">Reason (the citizen sees it)</label>
+                <input id="score-note" name="note" maxlength="300" class="form-control" required />
+            </div>
+            <div class="col-sm-3">
+                <button type="submit" class="btn btn-navy w-100" data-confirm="Change this citizen's trust score?">Apply</button>
+            </div>
+        </form>
+
+        @if (Model.ReputationEvents.Count > 0)
+        {
+            <div class="table-wrap mt-3">
+                <table class="table-dash">
+                    <thead><tr><th>When</th><th>What</th><th class="num">Points</th><th class="num">Score</th></tr></thead>
+                    <tbody>
+                    @foreach (var e in Model.ReputationEvents)
+                    {
+                        <tr>
+                            <td>@UiFormat.DateTimeText(e.CreatedAt)</td>
+                            <td>
+                                @ReputationRules.KindLabel(e.Kind)
+                                @if (e.ReportId.HasValue) { <span>&middot; <a asp-controller="Issues" asp-action="Details" asp-route-id="@e.ReportId">#@e.ReportId</a></span> }
+                                @if (!string.IsNullOrWhiteSpace(e.Note)) { <div class="muted">@e.Note</div> }
+                            </td>
+                            <td class="num">@(e.Delta > 0 ? "+" + e.Delta : e.Delta.ToString())</td>
+                            <td class="num">@e.ScoreAfter</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="form-hint mt-3">No changes yet: this citizen is still at the starting score.</div>
+        }
+    </section>
+}
+
 @section Scripts {
 <script>
     (function () {

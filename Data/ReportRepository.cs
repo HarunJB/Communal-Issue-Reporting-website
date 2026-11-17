@@ -2,6 +2,7 @@ using System.Text.Json;
 using Dapper;
 using Npgsql;
 using product_website.Models;
+using product_website.Services;
 
 namespace product_website.Data;
 
@@ -244,9 +245,13 @@ public class ReportRepository
     /// Changes a report's status and records it everywhere it belongs: the report row, the status history,
     /// an optional public response, a notice for the author and every supporter, and the audit log.
     /// <paramref name="staffDepartmentId"/> is the operator's department (null for admins, who may change any report).
+    /// <paramref name="rejectionCode"/> says why a report is rejected (not_found, duplicate, out_of_scope, other);
+    /// only "not_found" lowers the reporter's trust score. Leave it out and a rejection counts as "other".
+    /// The same transaction also updates the reporter's trust score (see ReputationRepository.ApplyVerdictAsync).
     /// </summary>
     public async Task<StatusChangeResult> ChangeStatusAsync(
-        int reportId, string newStatus, int staffId, int? staffDepartmentId, string? note, string? publicComment)
+        int reportId, string newStatus, int staffId, int? staffDepartmentId, string? note, string? publicComment,
+        string? rejectionCode = null)
     {
         await using var conn = await _db.OpenConnectionAsync();
         await using var tx = await conn.BeginTransactionAsync();
@@ -265,16 +270,26 @@ public class ReportRepository
             return StatusChangeResult.Forbidden;
         if (target.Status == newStatus) return StatusChangeResult.Unchanged;
 
+        // Why it was rejected. Anything unknown counts as "other", so nobody loses points by accident.
+        var code = newStatus == "rejected"
+            ? (ReputationRules.RejectionCodes.Contains(rejectionCode) ? rejectionCode : "other")
+            : null;
+
         await conn.ExecuteAsync(@"
             UPDATE reports
             SET status = CAST(@newStatus AS report_status),
                 updated_at = now(),
                 resolved_at = CASE WHEN @newStatus = 'resolved' THEN now() ELSE NULL END,
                 rejection_reason = CASE WHEN @newStatus = 'rejected' THEN @note ELSE NULL END,
+                rejection_code = @code,
                 assigned_to = CASE WHEN @newStatus IN ('assigned', 'in_progress') AND assigned_to IS NULL
                                    THEN @staffId ELSE assigned_to END
             WHERE id = @reportId",
-            new { reportId, newStatus, note, staffId }, tx);
+            new { reportId, newStatus, note, staffId, code }, tx);
+
+        // The reporter's trust score follows the staff decision.
+        var outcome = await ReputationRepository.ApplyVerdictAsync(
+            conn, tx, reportId, target.UserId, newStatus, code, staffId);
 
         await conn.ExecuteAsync(@"
             INSERT INTO status_history (report_id, old_status, new_status, changed_by, note)
@@ -296,16 +311,24 @@ public class ReportRepository
         var body = $"{target.CategoryName}{place}: status changed to {label.ToLowerInvariant()}."
                    + (string.IsNullOrWhiteSpace(note) ? "" : $" {note.Trim()}");
 
+        // The author's notice also says what happened to their trust score.
+        var authorBody = body;
+        if (outcome is not null && outcome.NetDelta != 0)
+        {
+            authorBody += $" Trust score {outcome.NetDelta:+0;-0}: now {outcome.ScoreAfter}";
+            authorBody += outcome.LevelChanged ? $" (level: {outcome.LevelLabel})." : ".";
+        }
+
         await conn.ExecuteAsync(@"
             INSERT INTO notifications (user_id, report_id, title, body)
-            SELECT t.uid, @reportId, @title, @body
+            SELECT t.uid, @reportId, @title, CASE WHEN t.uid = @authorId THEN @authorBody ELSE @body END
             FROM (
                 SELECT user_id AS uid FROM reports WHERE id = @reportId
                 UNION
                 SELECT user_id FROM report_supports WHERE report_id = @reportId
             ) t
             WHERE t.uid <> @staffId",
-            new { reportId, title, body, staffId }, tx);
+            new { reportId, title, body, authorBody, authorId = target.UserId, staffId }, tx);
 
         await conn.ExecuteAsync(@"
             INSERT INTO audit_log (actor_id, action, entity_type, entity_id, details)
@@ -314,7 +337,14 @@ public class ReportRepository
             {
                 staffId,
                 reportId,
-                details = JsonSerializer.Serialize(new { from = target.Status, to = newStatus, note })
+                details = JsonSerializer.Serialize(new
+                {
+                    from = target.Status,
+                    to = newStatus,
+                    note,
+                    rejection_code = code,
+                    trust_change = outcome?.NetDelta ?? 0
+                })
             }, tx);
 
         await tx.CommitAsync();

@@ -122,9 +122,15 @@ public class IssuesController : StaffController
             Failure("Please write the reason for rejecting this report. The citizen will see it.");
             return BackToDetails(id);
         }
+        if (form.Status == "rejected" && !ReputationRules.RejectionCodes.Contains(form.RejectionCode))
+        {
+            Failure("Please choose the reason type for the rejection.");
+            return BackToDetails(id);
+        }
 
         var scope = await GetScopeAsync();
-        var result = await _reports.ChangeStatusAsync(id, form.Status, StaffId, scope, note, form.PublicComment);
+        var result = await _reports.ChangeStatusAsync(
+            id, form.Status, StaffId, scope, note, form.PublicComment, form.RejectionCode);
 
         switch (result)
         {
@@ -248,6 +254,11 @@ public class IssuesController : StaffController
             Failure("Please write the reason for rejecting this report. The citizen will see it.");
             return BackToDetails(id);
         }
+        if (statusChanges && newStatus == "rejected" && !ReputationRules.RejectionCodes.Contains(form.RejectionCode))
+        {
+            Failure("Please choose the reason type for the rejection.");
+            return BackToDetails(id);
+        }
         if ((note?.Length ?? 0) > 500 || (publicMessage?.Length ?? 0) > 1000 || (commentBody?.Length ?? 0) > 1000)
         {
             Failure("A note or comment is too long.");
@@ -318,7 +329,8 @@ public class IssuesController : StaffController
 
         if (statusChanges)
         {
-            var result = await _reports.ChangeStatusAsync(id, newStatus, StaffId, scope, note, publicMessage);
+            var result = await _reports.ChangeStatusAsync(
+                id, newStatus, StaffId, scope, note, publicMessage, form.RejectionCode);
             if (result == StatusChangeResult.Ok)
                 done.Add($"Status changed to \"{UiFormat.StatusLabel(newStatus)}\". The citizen has been notified.");
             else if (result == StatusChangeResult.Forbidden)

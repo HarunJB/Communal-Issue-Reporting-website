@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using product_website.Data;
 using product_website.Models;
+using product_website.Services;
 
 namespace product_website.Controllers;
 
@@ -11,12 +12,15 @@ public class AdminController : StaffController
 {
     private readonly AdminRepository _admin;
     private readonly StaffReportRepository _staffReports;
+    private readonly ReputationRepository _reputation;
 
-    public AdminController(UserRepository users, AdminRepository admin, StaffReportRepository staffReports)
+    public AdminController(
+        UserRepository users, AdminRepository admin, StaffReportRepository staffReports, ReputationRepository reputation)
         : base(users)
     {
         _admin = admin;
         _staffReports = staffReports;
+        _reputation = reputation;
     }
 
     // =================================================================
@@ -57,7 +61,7 @@ public class AdminController : StaffController
         var user = await _admin.GetUserAsync(id);
         if (user is null || user.IsDeleted) return NotFound();
 
-        return View("UserForm", new UserFormModel
+        var model = new UserFormModel
         {
             Id = user.Id,
             FirstName = user.FirstName,
@@ -67,7 +71,43 @@ public class AdminController : StaffController
             DepartmentId = user.DepartmentId,
             IsSelf = user.Id == StaffId,
             Departments = await _staffReports.GetDepartmentOptionsAsync()
-        });
+        };
+        await LoadReputationAsync(model, user.Role);
+        return View("UserForm", model);
+    }
+
+    /// <summary>Fills the trust score panel on the edit page (citizens only).</summary>
+    private async Task LoadReputationAsync(UserFormModel model, string role)
+    {
+        if (model.Id == 0 || role != "citizen") return;
+        model.Reputation = await _reputation.GetSummaryAsync(model.Id);
+        model.ReputationEvents = await _reputation.GetEventsAsync(model.Id, 30);
+    }
+
+    // POST /Admin/AdjustScore  (add or remove trust points by hand; the reason is kept and the citizen is told)
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> AdjustScore(int id, int delta, string? note)
+    {
+        var user = await _admin.GetUserAsync(id);
+        if (user is null || user.IsDeleted) return NotFound();
+
+        note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        if (user.Role != "citizen")
+            Failure("Only citizens have a trust score.");
+        else if (delta == 0 || delta < -100 || delta > 100)
+            Failure("Enter a number of points between -100 and 100 (not 0).");
+        else if (note is null || note.Length < 3)
+            Failure("Please write a short reason. The citizen will see it.");
+        else if (note.Length > 300)
+            Failure("The reason is too long (up to 300 characters).");
+        else
+        {
+            var after = await _reputation.AdjustAsync(StaffId, id, delta, note);
+            if (after is null) Failure("Could not change the score.");
+            else Success($"Trust score of {user.FullName} is now {after} ({ReputationRules.LevelLabel(after.Value)}).");
+        }
+
+        return RedirectToAction(nameof(UserEdit), new { id });
     }
 
     [HttpPost, ValidateAntiForgeryToken]
@@ -78,6 +118,7 @@ public class AdminController : StaffController
 
         model.Departments = await _staffReports.GetDepartmentOptionsAsync();
         model.IsSelf = model.Id == StaffId;
+        await LoadReputationAsync(model, existing.Role);
 
         // You cannot take admin rights away from yourself (you could lock everyone out).
         if (model.IsSelf && model.Role != "admin")

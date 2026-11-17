@@ -12,12 +12,15 @@ public class ReportsController : AuthedApiController
     private readonly ReportRepository _reports;
     private readonly CategoryRepository _categories;
     private readonly PhotoStorage _photos;
+    private readonly ReputationRepository _reputation;
 
-    public ReportsController(ReportRepository reports, CategoryRepository categories, PhotoStorage photos)
+    public ReportsController(
+        ReportRepository reports, CategoryRepository categories, PhotoStorage photos, ReputationRepository reputation)
     {
         _reports = reports;
         _categories = categories;
         _photos = photos;
+        _reputation = reputation;
     }
 
     // GET /api/reports?categoryId=3&limit=100&offset=0   (public feed)
@@ -63,6 +66,11 @@ public class ReportsController : AuthedApiController
     [RequestSizeLimit(30_000_000)]
     public async Task<IActionResult> Create([FromForm] CreateReportForm form, CancellationToken ct)
     {
+        // Daily limit by trust level (staff are never limited).
+        var limitMessage = await _reputation.CheckDailyLimitAsync(UserId, IsStaff);
+        if (limitMessage is not null)
+            return StatusCode(StatusCodes.Status429TooManyRequests, new { message = limitMessage });
+
         if (!TryParseCoordinate(form.Latitude, out var latitude) ||
             !TryParseCoordinate(form.Longitude, out var longitude))
             return BadRequest(new { message = "The location is not valid." });

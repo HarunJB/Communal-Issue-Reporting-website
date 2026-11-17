@@ -45,6 +45,7 @@ builder.Services.AddScoped<StaffReportRepository>();
 builder.Services.AddScoped<DashboardRepository>();
 builder.Services.AddScoped<AlertRepository>();
 builder.Services.AddScoped<AdminRepository>();
+builder.Services.AddScoped<ReputationRepository>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<PhotoStorage>();
 

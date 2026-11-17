@@ -241,7 +241,12 @@ public class StaffReportRepository
                    u.id AS author_id,
                    TRIM(CONCAT(u.first_name, ' ', u.last_name)) AS author_name,
                    u.email AS author_email, u.phone AS author_phone,
-                   (SELECT COUNT(*)::int FROM report_supports s WHERE s.report_id = r.id) AS support_count
+                   (SELECT COUNT(*)::int FROM report_supports s WHERE s.report_id = r.id) AS support_count,
+                   CASE WHEN u.role = 'citizen' THEN u.trust_score END AS author_trust_score,
+                   (SELECT COUNT(*)::int FROM reputation_events e
+                     WHERE e.user_id = u.id AND e.kind = 'confirmed' AND e.reversed_at IS NULL) AS author_confirmed,
+                   (SELECT COUNT(*)::int FROM reputation_events e
+                     WHERE e.user_id = u.id AND e.kind = 'false_report' AND e.reversed_at IS NULL) AS author_false_reports
             FROM reports r
             JOIN categories c ON c.id = r.category_id
             JOIN departments d ON d.id = r.department_id
