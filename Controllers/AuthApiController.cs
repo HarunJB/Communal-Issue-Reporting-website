@@ -9,18 +9,22 @@ using product_website.Services;
 
 namespace product_website.Controllers;
 
-/// <summary>JSON endpoints used by the Flutter app </summary>
+/// <summary>JSON endpoints used by the Flutter app. The website keeps using AccountController.</summary>
 [ApiController]
 [Route("api/auth")]
 public class AuthApiController : ControllerBase
 {
     private readonly UserRepository _users;
     private readonly TokenService _tokens;
+    private readonly EmailCodeRepository _codes;
+    private readonly EmailSender _email;
 
-    public AuthApiController(UserRepository users, TokenService tokens)
+    public AuthApiController(UserRepository users, TokenService tokens, EmailCodeRepository codes, EmailSender email)
     {
         _users = users;
         _tokens = tokens;
+        _codes = codes;
+        _email = email;
     }
 
     // POST /api/auth/register
@@ -34,9 +38,10 @@ public class AuthApiController : ControllerBase
 
         var phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
 
+        int newId;
         try
         {
-            await _users.CreateCitizenAsync(
+            newId = await _users.CreateCitizenAsync(
                 email,
                 BCrypt.Net.BCrypt.HashPassword(request.Password),
                 request.FirstName.Trim(),
@@ -49,7 +54,16 @@ public class AuthApiController : ControllerBase
             return Conflict(new { message = "An account with this email already exists." });
         }
 
-        return StatusCode(StatusCodes.Status201Created, new { message = "Account created." });
+        // New accounts must confirm their email with a 6 digit code.
+        await _codes.MarkUnverifiedAsync(newId);
+        var code = await _codes.CreateAsync(newId, "verify");
+        var sent = code is not null && await _email.SendCodeAsync(email, request.FirstName.Trim(), "verify", code);
+
+        return StatusCode(StatusCodes.Status201Created, new
+        {
+            message = sent ? "Account created. We sent a code to your email." : "Account created, but the email could not be sent. Ask for a new code.",
+            requiresVerification = true
+        });
     }
 
     // POST /api/auth/login
@@ -64,6 +78,10 @@ public class AuthApiController : ControllerBase
 
         if (user.Status != "active")
             return StatusCode(StatusCodes.Status403Forbidden, new { message = "This account has been suspended." });
+
+        if (user.Role == "citizen" && !await _codes.IsVerifiedAsync(user.Id))
+            return StatusCode(StatusCodes.Status403Forbidden,
+                new { message = "Please verify your email address first.", code = "email_not_verified" });
 
         var (token, expiresAt) = _tokens.Create(user);
         return Ok(new AuthResponse(token, expiresAt, UserDto.From(user)));

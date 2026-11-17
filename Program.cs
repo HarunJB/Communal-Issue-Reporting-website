@@ -46,6 +46,9 @@ builder.Services.AddScoped<DashboardRepository>();
 builder.Services.AddScoped<AlertRepository>();
 builder.Services.AddScoped<AdminRepository>();
 builder.Services.AddScoped<ReputationRepository>();
+builder.Services.AddScoped<EmailCodeRepository>();
+builder.Services.AddSingleton<EmailSender>();
+builder.Services.AddHttpClient("brevo");
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddSingleton<PhotoStorage>();
 
